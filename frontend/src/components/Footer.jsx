@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Mail, Phone } from "lucide-react";
 import Logo from "./Logo";
 
@@ -20,7 +21,7 @@ export default function Footer() {
             <li><a className="hover:text-gold-300" href="/#facilitator">Facilitator</a></li>
             <li><a className="hover:text-gold-300" href="/#learn">What You'll Learn</a></li>
             <li><a className="hover:text-gold-300" href="/#pricing">Pricing</a></li>
-            <li><a className="hover:text-gold-300" href="/register">Register</a></li>
+            <li><Link className="hover:text-gold-300" to="/register">Register</Link></li>
           </ul>
         </div>
         <div>

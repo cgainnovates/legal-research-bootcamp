@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { initializePayment } from "../lib/api";
+import { fetchPricing, initializePayment } from "../lib/api";
 import {
   CATEGORIES,
   formatNaira,
@@ -8,6 +8,7 @@ import {
   getCategoryLabel,
   getTypeLabel,
 } from "../lib/pricing";
+import { formatDeadline, getRegistrationWindow } from "../lib/deadline";
 
 const empty = {
   fullName: "",
@@ -35,46 +36,63 @@ function validate(form) {
   return errors;
 }
 
-function startPaystackCheckout({ accessCode, authorizationUrl, reference }) {
-  return new Promise((resolve, reject) => {
-    if (window.PaystackPop && accessCode) {
-      try {
-        const popup = new window.PaystackPop();
-        popup.resumeTransaction(accessCode, {
-          onSuccess: () => resolve(reference),
-          onCancel: () => reject(new Error("Payment was closed before completion.")),
-        });
-        return;
-      } catch {
-        // Fall through to hosted checkout.
-      }
-    }
-    if (authorizationUrl) {
-      window.location.assign(authorizationUrl);
-      resolve("redirect");
-      return;
-    }
-    reject(new Error("Paystack checkout could not be opened."));
-  });
+function startPaystackCheckout({ authorizationUrl }) {
+  if (!authorizationUrl) {
+    throw new Error("Paystack checkout could not be opened.");
+  }
+  window.location.assign(authorizationUrl);
 }
 
 export default function RegisterPage() {
   const [params] = useSearchParams();
+  const presetCategory = params.get("category") || "";
+  const presetType = params.get("type") || "";
+  const locked = Boolean(presetCategory && presetType);
+
   const [form, setForm] = useState({
     ...empty,
-    category: params.get("category") || "",
-    registrationType: params.get("type") || "",
+    category: presetCategory,
+    registrationType: presetType,
   });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [windowInfo, setWindowInfo] = useState(() => getRegistrationWindow());
+
+  useEffect(() => {
+    setForm((prev) => ({
+      ...prev,
+      category: presetCategory || prev.category,
+      registrationType: presetType || prev.registrationType,
+    }));
+  }, [presetCategory, presetType]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPricing()
+      .then((result) => {
+        if (!cancelled && result.window) setWindowInfo(result.window);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const amount = useMemo(
     () => getAmount(form.category, form.registrationType),
     [form.category, form.registrationType]
   );
 
+  const selectedAvailable =
+    form.registrationType === "early"
+      ? windowInfo.earlyBirdOpen
+      : form.registrationType === "late"
+        ? windowInfo.lateOpen
+        : false;
+
   function update(name, value) {
+    if (locked && (name === "category" || name === "registrationType")) return;
     setForm((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: undefined }));
   }
@@ -85,6 +103,14 @@ export default function RegisterPage() {
     const nextErrors = validate(form);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
+    if (!selectedAvailable) {
+      setServerError(
+        form.registrationType === "early"
+          ? "Early Bird registration has closed."
+          : "Late Registration is not open yet."
+      );
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -95,8 +121,7 @@ export default function RegisterPage() {
         category: form.category,
         registrationType: form.registrationType,
       });
-      const data = result.data;
-      startPaystackCheckout({ authorizationUrl: data.authorizationUrl });
+      startPaystackCheckout({ authorizationUrl: result.data.authorizationUrl });
     } catch (error) {
       if (error.payload?.errors) setErrors(error.payload.errors);
       setServerError(error.message || "Unable to start payment.");
@@ -111,96 +136,98 @@ export default function RegisterPage() {
         <p className="section-kicker">Registration</p>
         <h1 className="mt-3 font-serif text-4xl text-navy-900">Reserve your seat</h1>
         <p className="mt-3 max-w-2xl text-navy-800/75">
-          Complete your details, confirm the approved fee, and pay securely through Paystack.
-          The amount is calculated from your selected category and registration type.
+          Complete your details and pay securely through Paystack. The fee is confirmed by the
+          server from your selected category and registration type.
         </p>
 
         <form onSubmit={onSubmit} className="mt-10 grid gap-8 lg:grid-cols-[1.15fr_0.85fr]" noValidate>
           <div className="space-y-5 border border-navy-900/10 bg-white p-6 sm:p-8">
             <h2 className="font-serif text-2xl">Participant information</h2>
-            <Field
-              label="Full name"
-              name="fullName"
-              value={form.fullName}
-              error={errors.fullName}
-              onChange={update}
-              autoComplete="name"
-            />
-            <Field
-              label="Email address"
-              name="email"
-              type="email"
-              value={form.email}
-              error={errors.email}
-              onChange={update}
-              autoComplete="email"
-            />
-            <Field
-              label="Phone number"
-              name="phone"
-              type="tel"
-              value={form.phone}
-              error={errors.phone}
-              onChange={update}
-              autoComplete="tel"
-            />
+            <Field label="Full name" name="fullName" value={form.fullName} error={errors.fullName} onChange={update} autoComplete="name" />
+            <Field label="Email address" name="email" type="email" value={form.email} error={errors.email} onChange={update} autoComplete="email" />
+            <Field label="Phone number" name="phone" type="tel" value={form.phone} error={errors.phone} onChange={update} autoComplete="tel" />
 
-            <fieldset>
-              <legend className="mb-2 text-sm font-medium text-navy-900">Category</legend>
-              <div className="grid gap-2">
-                {CATEGORIES.map((category) => (
-                  <label
-                    key={category.id}
-                    className={`flex cursor-pointer items-center gap-3 border px-3 py-3 text-sm ${
-                      form.category === category.id
-                        ? "border-gold-500 bg-gold-500/10"
-                        : "border-navy-900/15"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="category"
-                      value={category.id}
-                      checked={form.category === category.id}
-                      onChange={() => update("category", category.id)}
-                    />
-                    {category.label}
-                  </label>
-                ))}
+            {locked ? (
+              <div className="border border-gold-500/40 bg-gold-500/10 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-gold-700">Selected package</p>
+                <p className="mt-2 font-serif text-xl text-navy-900">
+                  {getCategoryLabel(form.category)}
+                </p>
+                <p className="text-sm text-navy-800/75">{getTypeLabel(form.registrationType)}</p>
+                <p className="mt-2 font-serif text-2xl text-navy-900">
+                  {amount ? formatNaira(amount) : ""}
+                </p>
               </div>
-              {errors.category && <p className="mt-1 text-sm text-red-700">{errors.category}</p>}
-            </fieldset>
-
-            <fieldset>
-              <legend className="mb-2 text-sm font-medium text-navy-900">Registration type</legend>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {[
-                  { id: "early", label: "Early Bird" },
-                  { id: "late", label: "Late Registration" },
-                ].map((type) => (
-                  <label
-                    key={type.id}
-                    className={`flex cursor-pointer items-center gap-3 border px-3 py-3 text-sm ${
-                      form.registrationType === type.id
-                        ? "border-gold-500 bg-gold-500/10"
-                        : "border-navy-900/15"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="registrationType"
-                      value={type.id}
-                      checked={form.registrationType === type.id}
-                      onChange={() => update("registrationType", type.id)}
-                    />
-                    {type.label}
-                  </label>
-                ))}
-              </div>
-              {errors.registrationType && (
-                <p className="mt-1 text-sm text-red-700">{errors.registrationType}</p>
-              )}
-            </fieldset>
+            ) : (
+              <>
+                <fieldset>
+                  <legend className="mb-2 text-sm font-medium text-navy-900">Category</legend>
+                  <div className="grid gap-2">
+                    {CATEGORIES.map((category) => (
+                      <label
+                        key={category.id}
+                        className={`flex cursor-pointer items-center gap-3 border px-3 py-3 text-sm ${
+                          form.category === category.id
+                            ? "border-gold-500 bg-gold-500/10"
+                            : "border-navy-900/15"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="category"
+                          value={category.id}
+                          checked={form.category === category.id}
+                          onChange={() => update("category", category.id)}
+                        />
+                        {category.label}
+                      </label>
+                    ))}
+                  </div>
+                  {errors.category && <p className="mt-1 text-sm text-red-700">{errors.category}</p>}
+                </fieldset>
+                <fieldset>
+                  <legend className="mb-2 text-sm font-medium text-navy-900">Registration type</legend>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {[
+                      { id: "early", label: "Early Bird", available: windowInfo.earlyBirdOpen },
+                      { id: "late", label: "Late Registration", available: windowInfo.lateOpen },
+                    ].map((type) => (
+                      <label
+                        key={type.id}
+                        className={`flex items-center gap-3 border px-3 py-3 text-sm ${
+                          !type.available
+                            ? "cursor-not-allowed opacity-50"
+                            : form.registrationType === type.id
+                              ? "cursor-pointer border-gold-500 bg-gold-500/10"
+                              : "cursor-pointer border-navy-900/15"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="registrationType"
+                          value={type.id}
+                          disabled={!type.available}
+                          checked={form.registrationType === type.id}
+                          onChange={() => update("registrationType", type.id)}
+                        />
+                        <span>
+                          {type.label}
+                          {!type.available && (
+                            <span className="block text-xs text-navy-800/60">Unavailable</span>
+                          )}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {errors.registrationType && (
+                    <p className="mt-1 text-sm text-red-700">{errors.registrationType}</p>
+                  )}
+                </fieldset>
+              </>
+            )}
+            <p className="text-xs text-navy-800/60">
+              Early Bird closes {formatDeadline(windowInfo.deadline)}.
+            </p>
           </div>
 
           <aside className="h-fit border border-navy-900/10 bg-navy-900 p-6 text-ivory sm:p-8">
@@ -209,18 +236,12 @@ export default function RegisterPage() {
               <Row label="Name" value={form.fullName || "—"} />
               <Row label="Email" value={form.email || "—"} />
               <Row label="Category" value={form.category ? getCategoryLabel(form.category) : "—"} />
-              <Row
-                label="Type"
-                value={form.registrationType ? getTypeLabel(form.registrationType) : "—"}
-              />
+              <Row label="Type" value={form.registrationType ? getTypeLabel(form.registrationType) : "—"} />
             </dl>
             <div className="mt-6 border-t border-white/15 pt-5">
               <p className="text-xs uppercase tracking-[0.2em] text-gold-300">Registration fee</p>
               <p className="mt-1 font-serif text-3xl">
                 {amount ? formatNaira(amount) : "Select options"}
-              </p>
-              <p className="mt-2 text-xs text-ivory/60">
-                The server confirms this fee against the official pricing table before Paystack is opened.
               </p>
             </div>
             {serverError && (
@@ -228,14 +249,15 @@ export default function RegisterPage() {
                 {serverError}
               </p>
             )}
-            <button type="submit" className="btn-gold mt-6 w-full" disabled={submitting}>
+            <button
+              type="submit"
+              className="btn-gold mt-6 w-full"
+              disabled={submitting || (Boolean(form.registrationType) && !selectedAvailable)}
+            >
               {submitting ? "Connecting to Paystack…" : "Pay securely with Paystack"}
             </button>
-            <p className="mt-4 text-center text-xs text-ivory/50">
-              By continuing you will be taken to Paystack to complete payment.
-            </p>
-            <Link to="/" className="mt-4 block text-center text-sm text-gold-300 hover:underline">
-              Return to the bootcamp page
+            <Link to="/#pricing" className="mt-4 block text-center text-sm text-gold-300 hover:underline">
+              Choose a different package
             </Link>
           </aside>
         </form>

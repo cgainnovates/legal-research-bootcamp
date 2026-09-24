@@ -43,7 +43,7 @@ export function resolvePricing(categoryId, typeId) {
   };
 }
 
-export function listPricingPublic() {
+export function listPricingPublic(windowInfo) {
   return Object.values(CATEGORIES).map((category) => ({
     id: category.id,
     label: category.label,
@@ -52,6 +52,10 @@ export function listPricingPublic() {
       id: type.id,
       label: type.label,
       amountNaira: type.amountNaira,
+      available:
+        type.id === "early"
+          ? Boolean(windowInfo?.earlyBirdOpen)
+          : Boolean(windowInfo?.lateOpen),
     })),
   }));
 }

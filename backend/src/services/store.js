@@ -80,6 +80,11 @@ export async function findById(id) {
   return records.find((item) => item.id === id) || null;
 }
 
+export async function findByRegistrationId(registrationId) {
+  const records = await readAll();
+  return records.find((item) => item.registrationId === registrationId) || null;
+}
+
 export async function updateByReference(reference, patch) {
   return queued(async () => {
     const records = await readAll();
@@ -118,5 +123,8 @@ export function publicRegistration(record) {
     paidAt: record.paidAt || null,
     verified: record.status === "paid",
     createdAt: record.createdAt,
+    registrationId: record.registrationId || null,
+    verifyUrl: record.verifyUrl || null,
+    qrImageUrl: record.qrImageUrl || null,
   };
 }

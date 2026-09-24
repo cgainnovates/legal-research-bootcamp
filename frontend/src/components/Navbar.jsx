@@ -4,12 +4,12 @@ import { Menu, X } from "lucide-react";
 import Logo from "./Logo";
 
 const links = [
-  { href: "/#home", label: "Home" },
-  { href: "/#about", label: "About" },
-  { href: "/#facilitator", label: "Facilitator" },
-  { href: "/#learn", label: "What You'll Learn" },
-  { href: "/#pricing", label: "Pricing" },
-  { href: "/register", label: "Register" },
+  { href: "/#home", label: "Home", kind: "hash" },
+  { href: "/#about", label: "About", kind: "hash" },
+  { href: "/#facilitator", label: "Facilitator", kind: "hash" },
+  { href: "/#learn", label: "What You'll Learn", kind: "hash" },
+  { href: "/#pricing", label: "Pricing", kind: "hash" },
+  { href: "/register", label: "Register", kind: "route" },
 ];
 
 export default function Navbar() {
@@ -42,12 +42,21 @@ export default function Navbar() {
         <ul className="hidden items-center gap-7 lg:flex">
           {links.map((link) => (
             <li key={link.href}>
-              <a
-                href={link.href}
-                className="text-sm font-medium text-ivory/85 transition hover:text-gold-300"
-              >
-                {link.label}
-              </a>
+              {link.kind === "route" ? (
+                <Link
+                  to={link.href}
+                  className="text-sm font-medium text-ivory/85 transition hover:text-gold-300"
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <a
+                  href={link.href}
+                  className="text-sm font-medium text-ivory/85 transition hover:text-gold-300"
+                >
+                  {link.label}
+                </a>
+              )}
             </li>
           ))}
         </ul>
@@ -72,12 +81,21 @@ export default function Navbar() {
           <ul className="container-page flex flex-col gap-1 py-4">
             {links.map((link) => (
               <li key={link.href}>
-                <a
-                  href={link.href}
-                  className="block rounded-sm px-2 py-3 text-ivory/90 hover:bg-white/5 hover:text-gold-300"
-                >
-                  {link.label}
-                </a>
+                {link.kind === "route" ? (
+                  <Link
+                    to={link.href}
+                    className="block rounded-sm px-2 py-3 text-ivory/90 hover:bg-white/5 hover:text-gold-300"
+                  >
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a
+                    href={link.href}
+                    className="block rounded-sm px-2 py-3 text-ivory/90 hover:bg-white/5 hover:text-gold-300"
+                  >
+                    {link.label}
+                  </a>
+                )}
               </li>
             ))}
             <li className="pt-2">

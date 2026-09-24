@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { CheckCircle2, CircleAlert, Loader2 } from "lucide-react";
+import { CheckCircle2, CircleAlert, Loader2, Printer } from "lucide-react";
 import { verifyPayment } from "../lib/api";
 import { formatNaira } from "../lib/pricing";
 
@@ -8,6 +8,7 @@ export default function ConfirmationPage() {
   const [params] = useSearchParams();
   const reference = params.get("reference") || params.get("trxref") || "";
   const [state, setState] = useState({ status: "loading", message: "", data: null });
+  const receiptRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -15,7 +16,7 @@ export default function ConfirmationPage() {
       if (!reference) {
         setState({
           status: "error",
-          message: "No payment reference was supplied. If you completed payment, check your email or contact Edge Legal Consult with your Paystack receipt.",
+          message: "No payment reference was supplied. If you completed payment, contact Edge Legal Consult with your Paystack receipt.",
           data: null,
         });
         return;
@@ -60,20 +61,52 @@ export default function ConfirmationPage() {
             <p className="mt-3 text-navy-800/80">
               The registration and payment have been successfully verified.
             </p>
-            <dl className="mt-8 divide-y divide-navy-900/10 border border-navy-900/10">
-              <Item label="Name" value={state.data?.fullName} />
-              <Item label="Registration category" value={state.data?.categoryLabel} />
-              <Item label="Registration type" value={state.data?.typeLabel} />
-              <Item
-                label="Amount paid"
-                value={state.data?.amountNaira ? formatNaira(state.data.amountNaira) : "—"}
-              />
-              <Item label="Paystack reference" value={state.data?.reference || reference} />
-            </dl>
-            <p className="mt-6 text-sm text-navy-800/65">
-              Please keep this reference for your records. For programme details, write to
-              edgelegalconsult@gmail.com or call 09064717723.
-            </p>
+
+            <div ref={receiptRef} className="mt-8 border border-navy-900/10 p-6">
+              <p className="section-kicker">Edge Legal Consult</p>
+              <h2 className="mt-2 font-serif text-2xl text-navy-900">Registration Receipt</h2>
+              <p className="text-sm text-navy-800/70">Legal Research Bootcamp with David Eyongndi PhD</p>
+              <dl className="mt-6 divide-y divide-navy-900/10 border border-navy-900/10">
+                <Item label="Name" value={state.data?.fullName} />
+                <Item label="Email" value={state.data?.email} />
+                <Item label="Phone" value={state.data?.phone} />
+                <Item label="Category" value={state.data?.categoryLabel} />
+                <Item label="Registration type" value={state.data?.typeLabel} />
+                <Item label="Amount paid" value={state.data?.amountNaira ? formatNaira(state.data.amountNaira) : "—"} />
+                <Item label="Payment status" value="Paid / Verified" />
+                <Item label="Paystack reference" value={state.data?.reference || reference} />
+                <Item label="Registration ID" value={state.data?.registrationId} />
+                <Item
+                  label="Registration date"
+                  value={
+                    state.data?.paidAt || state.data?.createdAt
+                      ? new Date(state.data.paidAt || state.data.createdAt).toLocaleString("en-NG")
+                      : "—"
+                  }
+                />
+              </dl>
+              {state.data?.qrImageUrl && (
+                <div className="mt-6 flex flex-col items-center">
+                  <img
+                    src={state.data.qrImageUrl}
+                    alt={`QR code for ${state.data.registrationId}`}
+                    className="h-40 w-40 border border-navy-900/10 bg-white p-2"
+                  />
+                  <p className="mt-2 text-xs text-navy-800/60">Scan to verify this registration</p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button type="button" className="btn-navy" onClick={() => window.print()}>
+                <Printer className="h-4 w-4" /> Print / save receipt
+              </button>
+              {state.data?.verifyUrl && (
+                <Link to={`/verify/${state.data.registrationId}`} className="btn-gold">
+                  Open verification page
+                </Link>
+              )}
+            </div>
           </>
         )}
 

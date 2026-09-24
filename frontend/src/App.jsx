@@ -5,6 +5,7 @@ import Footer from "./components/Footer";
 import HomePage from "./pages/HomePage";
 import RegisterPage from "./pages/RegisterPage";
 import ConfirmationPage from "./pages/ConfirmationPage";
+import VerifyPage from "./pages/VerifyPage";
 
 export default function App() {
   const location = useLocation();
@@ -27,7 +28,10 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/reserve" element={<RegisterPage />} />
+        <Route path="/dashboard/register" element={<RegisterPage />} />
         <Route path="/confirmation" element={<ConfirmationPage />} />
+        <Route path="/verify/:registrationId" element={<VerifyPage />} />
       </Routes>
       <Footer />
     </div>

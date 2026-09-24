@@ -60,3 +60,13 @@ body {
     transform: translateY(0);
   }
 }
+
+@media print {
+  header,
+  footer,
+  button,
+  a.btn-navy,
+  a.btn-gold {
+    display: none !important;
+  }
+}
