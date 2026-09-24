@@ -1,0 +1,9 @@
+{
+  "name": "legal-research-bootcamp",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "npm install --prefix frontend && npm run build --prefix frontend"
+  }
+}
