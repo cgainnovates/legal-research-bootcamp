@@ -1,0 +1,6 @@
+/register           /index.html  200
+/reserve            /index.html  200
+/confirmation       /index.html  200
+/verify/:id         /index.html  200
+/dashboard/register /index.html  200
+/*                  /index.html  200

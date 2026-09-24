@@ -27,6 +27,23 @@ export const env = {
   paystackWebhookSecret: required("PAYSTACK_WEBHOOK_SECRET", "").trim(),
 };
 
+export function getPublicSiteUrl(req) {
+  const configured = String(process.env.FRONTEND_URL || "").trim().replace(/\/$/, "");
+  if (/^https?:\/\//i.test(configured) && !/localhost|127\.0\.0\.1/.test(configured)) {
+    return configured;
+  }
+
+  const proto = String(req?.get?.("x-forwarded-proto") || req?.protocol || "https").split(",")[0];
+  const host = String(req?.get?.("x-forwarded-host") || req?.get?.("host") || "")
+    .split(",")[0]
+    .trim();
+  if (host && !host.startsWith("localhost") && !host.startsWith("127.0.0.1")) {
+    return `${proto}://${host}`.replace(/\/$/, "");
+  }
+
+  return env.frontendUrl;
+}
+
 export function assertPaystackConfigured() {
   if (!env.paystackSecretKey || !env.paystackSecretKey.startsWith("sk_")) {
     const error = new Error(

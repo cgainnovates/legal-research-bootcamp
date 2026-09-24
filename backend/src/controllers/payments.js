@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { env } from "../config/env.js";
+import { env, getPublicSiteUrl } from "../config/env.js";
 import { getRegistrationWindow, assertTypeAvailable } from "../config/deadline.js";
 import { listPricingPublic, resolvePricing } from "../config/pricing.js";
 import { validateRegistrationInput } from "../middleware/validate.js";
@@ -112,7 +112,8 @@ export async function initializePayment(req, res, next) {
       console.warn("[payments] could not persist registration locally:", storeError.message);
     }
 
-    const callbackUrl = `${env.frontendUrl}/confirmation?reference=${encodeURIComponent(reference)}`;
+    const siteUrl = getPublicSiteUrl(req);
+    const callbackUrl = `${siteUrl}/confirmation?reference=${encodeURIComponent(reference)}`;
 
     const names = splitName(record.fullName);
     const initialized = await initializeTransaction({
@@ -122,21 +123,25 @@ export async function initializePayment(req, res, next) {
       callbackUrl,
       firstName: names.firstName,
       lastName: names.lastName,
+      phone: record.phone,
       metadata: {
-        registrationId: id,
+        cancel_action: `${siteUrl}/register`,
+        registrationId: record.registrationId,
+        internalId: id,
         fullName: record.fullName,
         phone: record.phone,
         categoryId: record.categoryId,
         categoryLabel: record.categoryLabel,
         typeId: record.typeId,
         typeLabel: record.typeLabel,
-        amountNaira: record.amountNaira,
-        registrationId: record.registrationId,
+        amountNaira: String(record.amountNaira),
         custom_fields: [
-          { display_name: "Participant", variable_name: "full_name", value: record.fullName },
-          { display_name: "Phone", variable_name: "phone", value: record.phone },
-          { display_name: "Category", variable_name: "category", value: record.categoryLabel },
-          { display_name: "Type", variable_name: "registration_type", value: record.typeLabel },
+          { display_name: "Full name", variable_name: "full_name", value: String(record.fullName) },
+          { display_name: "Phone number", variable_name: "phone", value: String(record.phone) },
+          { display_name: "Category", variable_name: "category", value: String(record.categoryLabel) },
+          { display_name: "Registration type", variable_name: "registration_type", value: String(record.typeLabel) },
+          { display_name: "Amount (NGN)", variable_name: "amount_naira", value: String(record.amountNaira) },
+          { display_name: "Registration ID", variable_name: "registration_id", value: String(record.registrationId) },
         ],
       },
     });

@@ -40,6 +40,7 @@ export async function initializeTransaction({
   callbackUrl,
   firstName,
   lastName,
+  phone,
 }) {
   const payload = await paystackRequest("/transaction/initialize", {
     method: "POST",
@@ -51,6 +52,7 @@ export async function initializeTransaction({
       callback_url: callbackUrl,
       first_name: firstName || undefined,
       last_name: lastName || undefined,
+      phone: phone || undefined,
       metadata,
     }),
   });
