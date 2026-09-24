@@ -1,17 +1,28 @@
-import { verifyTransaction, frontendUrl, send } from "../../_lib/paystack.js";
+import { verifyTransaction, frontendUrl, send } from "../_lib/paystack.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     return send(res, 405, { success: false, message: "Method not allowed." });
   }
 
-  const reference = String(req.query.reference || "").trim();
+  const pathParts = String(req.url || "").split("?")[0].split("/").filter(Boolean);
+  const pathRef = pathParts[pathParts.length - 1];
+  const reference = String(
+    req.query.reference || req.query.trxref || (pathRef && pathRef !== "verify" ? pathRef : "") || ""
+  ).trim();
+
   if (!reference) {
     return send(res, 400, { success: false, message: "Payment reference is required." });
   }
 
   try {
     const data = await verifyTransaction(reference);
+    if (!data) {
+      return send(res, 502, {
+        success: false,
+        message: "Paystack did not return transaction details for this reference.",
+      });
+    }
     const meta = data.metadata || {};
     const expectedKobo = Number(meta.amountNaira || 0) * 100;
     const paid =
@@ -19,7 +30,9 @@ export default async function handler(req, res) {
       Number(data.amount) > 0 &&
       (expectedKobo === 0 || Number(data.amount) === expectedKobo);
 
-    const registrationId = meta.registrationId || `REG-${String(data.reference || reference).replace(/[^A-Z0-9]/gi, "").slice(-16)}`;
+    const registrationId =
+      meta.registrationId ||
+      `REG-${String(data.reference || reference).replace(/[^A-Z0-9]/gi, "").slice(-16)}`;
     const origin = frontendUrl(req);
     const verifyUrl = `${origin}/verify/${encodeURIComponent(registrationId)}?ref=${encodeURIComponent(data.reference || reference)}`;
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(verifyUrl)}`;

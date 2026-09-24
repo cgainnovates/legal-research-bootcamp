@@ -2,7 +2,17 @@
   "buildCommand": "npm install --prefix frontend && npm run build --prefix frontend",
   "outputDirectory": "frontend/dist",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/payments/verify/:reference",
+      "destination": "/api/payments/verify?reference=:reference"
+    },
+    {
+      "source": "/api/payments/registration/:registrationId",
+      "destination": "/api/payments/registration?registrationId=:registrationId"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
   ]
 }

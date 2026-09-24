@@ -1,17 +1,15 @@
-import { send } from "../../_lib/paystack.js";
-import { verifyTransaction } from "../../_lib/paystack.js";
+import { send, verifyTransaction } from "../_lib/paystack.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     return send(res, 405, { success: false, valid: false, message: "Method not allowed." });
   }
 
-  const registrationId = String(req.query.registrationId || "").trim();
+  const registrationId = String(req.query.registrationId || req.query.id || "").trim();
   const reference = String(req.query.ref || req.query.reference || "").trim();
   if (!registrationId) {
     return send(res, 400, { success: false, valid: false, message: "Registration ID is required." });
   }
-
   if (!reference) {
     return send(res, 404, {
       success: false,

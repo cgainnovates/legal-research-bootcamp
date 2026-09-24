@@ -23,6 +23,12 @@ async function request(path, options = {}) {
     throw error;
   }
 
+  if (!payload || typeof payload !== "object") {
+    const error = new Error("The server did not return payment data. Open /api/payments/pricing to check that the API is live.");
+    error.status = 502;
+    throw error;
+  }
+
   return payload;
 }
 
@@ -38,10 +44,12 @@ export function initializePayment(body) {
 }
 
 export function verifyPayment(reference) {
-  return request(`/api/payments/verify/${encodeURIComponent(reference)}`);
+  return request(`/api/payments/verify?reference=${encodeURIComponent(reference)}`);
 }
 
 export function lookupRegistration(registrationId, reference) {
-  const extra = reference ? `?ref=${encodeURIComponent(reference)}` : "";
-  return request(`/api/payments/registration/${encodeURIComponent(registrationId)}${extra}`);
+  const extra = reference ? `&ref=${encodeURIComponent(reference)}` : "";
+  return request(
+    `/api/payments/registration?registrationId=${encodeURIComponent(registrationId)}${extra}`
+  );
 }
