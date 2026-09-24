@@ -41,6 +41,7 @@ export function verifyPayment(reference) {
   return request(`/api/payments/verify/${encodeURIComponent(reference)}`);
 }
 
-export function lookupRegistration(registrationId) {
-  return request(`/api/payments/registration/${encodeURIComponent(registrationId)}`);
+export function lookupRegistration(registrationId, reference) {
+  const extra = reference ? `?ref=${encodeURIComponent(reference)}` : "";
+  return request(`/api/payments/registration/${encodeURIComponent(registrationId)}${extra}`);
 }

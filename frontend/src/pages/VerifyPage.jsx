@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { BadgeCheck, CircleAlert, Loader2 } from "lucide-react";
 import { lookupRegistration } from "../lib/api";
 
 export default function VerifyPage() {
   const { registrationId = "" } = useParams();
+  const [params] = useSearchParams();
+  const reference = params.get("ref") || params.get("reference") || "";
   const [state, setState] = useState({ status: "loading", message: "", data: null });
 
   useEffect(() => {
@@ -15,7 +17,7 @@ export default function VerifyPage() {
         return;
       }
       try {
-        const result = await lookupRegistration(registrationId);
+        const result = await lookupRegistration(registrationId, reference);
         if (cancelled) return;
         setState({ status: "success", message: result.message, data: result.data });
       } catch (error) {
@@ -31,7 +33,7 @@ export default function VerifyPage() {
     return () => {
       cancelled = true;
     };
-  }, [registrationId]);
+  }, [registrationId, reference]);
 
   return (
     <main className="bg-ivory px-5 pb-20 pt-28">
