@@ -65,7 +65,11 @@ export async function initializePayment(req, res, next) {
       updatedAt: new Date().toISOString(),
     };
 
-    await createRegistration(record);
+    try {
+      await createRegistration(record);
+    } catch (storeError) {
+      console.warn("[payments] could not persist registration locally:", storeError.message);
+    }
 
     const callbackUrl = `${env.frontendUrl}/confirmation?reference=${encodeURIComponent(reference)}`;
 
@@ -79,7 +83,10 @@ export async function initializePayment(req, res, next) {
         fullName: record.fullName,
         phone: record.phone,
         categoryId: record.categoryId,
+        categoryLabel: record.categoryLabel,
         typeId: record.typeId,
+        typeLabel: record.typeLabel,
+        amountNaira: record.amountNaira,
         custom_fields: [
           { display_name: "Participant", variable_name: "full_name", value: record.fullName },
           { display_name: "Category", variable_name: "category", value: record.categoryLabel },
@@ -171,11 +178,43 @@ export async function verifyPayment(req, res, next) {
       return res.status(400).json({ success: false, message: "Payment reference is required." });
     }
 
-    const existing = await findByReference(reference);
+    let existing = null;
+    try {
+      existing = await findByReference(reference);
+    } catch {
+      existing = null;
+    }
+
     if (!existing) {
-      return res.status(404).json({
-        success: false,
-        message: "No registration was found for this payment reference.",
+      const data = await verifyTransaction(reference);
+      const meta = data.metadata || {};
+      const amountNaira = Number(meta.amountNaira || Number(data.amount || 0) / 100);
+      const paid = data.status === "success" && Number(data.amount) === amountNaira * 100;
+      const synthetic = {
+        fullName: meta.fullName,
+        email: data.customer?.email,
+        phone: meta.phone,
+        categoryId: meta.categoryId,
+        categoryLabel: meta.categoryLabel,
+        typeId: meta.typeId,
+        typeLabel: meta.typeLabel,
+        amountNaira,
+        currency: "NGN",
+        status: paid ? "paid" : data.status,
+        reference: data.reference,
+        paidAt: data.paid_at || null,
+      };
+      if (!paid) {
+        return res.status(402).json({
+          success: false,
+          message: "Payment has not been verified.",
+          data: publicRegistration(synthetic),
+        });
+      }
+      return res.json({
+        success: true,
+        message: "Registration and payment have been successfully verified.",
+        data: publicRegistration(synthetic),
       });
     }
 

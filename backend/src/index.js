@@ -10,9 +10,19 @@ const app = express();
 
 app.set("trust proxy", 1);
 app.use(helmet());
+const allowedOrigins = new Set(
+  [env.frontendUrl, process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : ""]
+    .filter(Boolean)
+);
+
 app.use(
   cors({
-    origin: env.frontendUrl,
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin) || /\.vercel\.app$/.test(origin || "")) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     methods: ["GET", "POST", "OPTIONS"],
   })
 );
