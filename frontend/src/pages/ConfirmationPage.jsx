@@ -24,10 +24,11 @@ export default function ConfirmationPage() {
       try {
         const result = await verifyPayment(reference);
         if (cancelled) return;
+        const data = result?.data || null;
         setState({
-          status: result.data?.verified ? "success" : "pending",
-          message: result.message,
-          data: result.data,
+          status: data?.verified ? "success" : "pending",
+          message: result?.message || (data ? "Payment is still pending." : "No payment data was returned."),
+          data,
         });
       } catch (error) {
         if (cancelled) return;
@@ -101,8 +102,11 @@ export default function ConfirmationPage() {
               <button type="button" className="btn-navy" onClick={() => window.print()}>
                 <Printer className="h-4 w-4" /> Print / save receipt
               </button>
-              {state.data?.verifyUrl && (
-                <Link to={`/verify/${state.data.registrationId}`} className="btn-gold">
+              {state.data?.registrationId && (
+                <Link
+                  to={`/verify/${encodeURIComponent(state.data.registrationId)}?ref=${encodeURIComponent(state.data.reference || reference)}`}
+                  className="btn-gold"
+                >
                   Open verification page
                 </Link>
               )}
